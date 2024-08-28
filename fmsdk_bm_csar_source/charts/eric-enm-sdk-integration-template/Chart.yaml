@@ -1,0 +1,13 @@
+apiVersion: v2
+name: eric-enm-sdk-integration-template
+description: Template SDK Integration Chart
+type: application
+appVersion: "1.16.0"
+version: <<VERSION>>
+dependencies:
+  - name: FM_SDK_CHART_NAME
+    version: FM_SDK_CHART_VERSION
+    repository: FM_SDK_CHART_LOCATION
+  - name: PM_SDK_CHART_NAME
+    version: PM_SDK_CHART_VERSION
+    repository: PM_SDK_CHART_LOCATION

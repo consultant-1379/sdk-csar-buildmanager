@@ -1,0 +1,108 @@
+modelVersion: 2.0
+
+description: "ENM: SDK Buildmanager Pipeline"
+
+docker:
+  registry: https://armdocker.rnd.ericsson.se/proj-enm
+
+docker-images:
+  - adp-release-auto: armdocker.rnd.ericsson.se/sandbox/adp-staging/adp-cicd/bob-adp-release-auto:latest
+  - adp-release-cnbuild: armdocker.rnd.ericsson.se/proj_oss_releases/enm/adp-int-helm-chart-auto:latest
+  - eric-enm-version-auto: armdocker.rnd.ericsson.se/proj-enm/eric-enm-version-auto:latest
+  - vnfsdk-pkgtool: armdocker.rnd.ericsson.se/proj-am/releases/vnfsdk-pkgtools:1.4.0-1
+
+properties:
+  - image-name: sdk-csar-buildmanager
+  - image-repo: https://armdocker.rnd.ericsson.se/proj-enm
+  - fmsdk-repo-server-path: https://arm.seli.gic.ericsson.se/artifactory/proj-eric-fm-sdk
+
+env:
+  - RELEASE (default=true)
+  - DOCKER_CONFIG (default=${env.HOME}/.docker/config.json)
+  - HOME
+  - PWD
+  - DOCKER_NETWORK (default=--network host)
+  - HELM_REPO_TOKEN
+  - BUILD_DATE (default = $(date +%d%m%Y-%H%M%S --utc))
+  - AUTHOR_NAME
+  - AUTHOR_EMAIL
+  - GIT_COMMITTER_NAME
+  - GIT_COMMITTER_EMAIL
+  - ERIC_ENM_FMSDK_IMAGE_TAG
+  - ERIC_ENM_FMSDK_TEMPLATES
+  - ERIC_ENM_PMSDK_IMAGE_TAG
+  - ERIC_ENM_PMSDK_TEMPLATES
+  - CHART_REPO  
+
+var:
+  - commit-hash
+  - version
+  - version-prefix
+  - rstate
+  - docker-config-basepath
+  - docker-sock-group
+
+rules:
+  swap-latest-versions-with-numbers:
+    - task: swap_versions
+      docker-image: eric-enm-version-auto
+      docker-flags:
+        - "--env-file enm_artifact.properties"
+      cmd: python /substitute_values.py
+
+  generate-new-version:
+    - task: generate-version
+      docker-image: adp-release-auto
+      cmd: generate-version -f VERSION_PREFIX --is-release ${env.RELEASE} --output version
+    - task: set-version-prefix
+      cmd: cat VERSION_PREFIX > .bob/var.version-prefix
+    - task: generate-rstate
+      docker-image: adp-release-auto
+      cmd: get_rstate.py ${var.version} > .bob/var.rstate
+    - task: get-commit-hash
+      docker-image: adp-release-auto
+      cmd: git rev-parse HEAD > .bob/var.commit-hash
+
+  generate-metadata-parameters:
+    - task: generate-metadata-version
+      docker-image: eric-enm-version-auto
+      docker-flags:
+        - "--env ISO_VERSION='${env.ISO_VERSION}'"
+      cmd: python /generate-metadata-artifacts.py
+
+  create-git-tag:
+    - task: create-git-tag
+      docker-image: adp-release-auto
+      docker-flags:
+        - "--env GIT_COMMITTER_NAME='${env.GIT_COMMITTER_NAME}'"
+        - "--env GIT_COMMITTER_EMAIL='${env.GIT_COMMITTER_EMAIL}'"
+      cmd: git tag --annotate ${var.version} --message "Build Version ${var.version} by ${env.AUTHOR_NAME} <${env.AUTHOR_EMAIL}>"
+
+  remove-git-tag:
+    - task: remove-git-tag
+      docker-image: adp-release-auto
+      cmd: git tag --delete ${var.version}
+
+  generate-bm-archive-pre-code-review:
+    - task: find-docker-config-basepath
+      cmd: dirname ${env.DOCKER_CONFIG} > .bob/var.docker-config-basepath
+    - task: get-docker-sock-group
+      cmd: stat -c '%g' /var/run/docker.sock > .bob/var.docker-sock-group
+    - task: prepare-bm-archive-light
+      cmd: bash prepare_sdk_bm_archive.sh -p --version=${var.version} --light --fmsdk=latest --fmsdk_tag=latest --pmsdk=latest --pmsdk_tag=latest
+    - task: build-bm-archive
+      cmd: bash prepare_sdk_bm_archive.sh -g --version=${var.version}
+      
+  generate-output-parameters:
+    - task: generate-version
+      docker-image: adp-release-auto
+      cmd: generate-adp-artifacts --chart-name ${helm-chart-name} --chart-repo ${helm-chart-repo} --chart-version ${var.version} --image-repo ${image-repo} --image-name ${image-name} --image-version ${var.version} --chart-repo ${env.CHART_REPO}
+  generate-bm-archive:
+    - task: find-docker-config-basepath
+      cmd: dirname ${env.DOCKER_CONFIG} > .bob/var.docker-config-basepath
+    - task: get-docker-sock-group
+      cmd: stat -c '%g' /var/run/docker.sock > .bob/var.docker-sock-group
+    - task: prepare-bm-archive
+      cmd: bash prepare_sdk_bm_archive.sh -p --version=${var.version} --fmsdk=${env.ERIC_ENM_FMSDK_TEMPLATES} --fmsdk_tag=${env.ERIC_ENM_FMSDK_IMAGE_TAG} --pmsdk=${env.ERIC_ENM_PMSDK_TEMPLATES} --pmsdk_tag=${env.ERIC_ENM_PMSDK_IMAGE_TAG}
+    - task: build-bm-archive
+      cmd: bash prepare_sdk_bm_archive.sh -g --version=${var.version}

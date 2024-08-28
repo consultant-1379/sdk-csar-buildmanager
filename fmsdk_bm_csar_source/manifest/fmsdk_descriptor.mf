@@ -1,0 +1,5 @@
+metadata:
+vnf_product_name: <<PRODUCT>>
+vnf_provider_id: Ericsson
+vnf_package_version: <<VERSION>>
+vnf_release_date_time: <<DATE>>

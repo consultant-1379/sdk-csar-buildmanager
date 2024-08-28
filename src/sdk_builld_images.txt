@@ -1,0 +1,3 @@
+armdocker.rnd.ericsson.se/proj-am/releases/eric-am-package-manager:2.62.0-1
+armdocker.rnd.ericsson.se/proj-enm/eric-enm-models-core-image:latest
+armdocker.rnd.ericsson.se/proj-enm/eric-enm-monitoring-eap7:1.37.0-39

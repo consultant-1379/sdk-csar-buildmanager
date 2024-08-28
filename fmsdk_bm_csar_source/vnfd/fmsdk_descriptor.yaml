@@ -1,0 +1,91 @@
+tosca_definitions_version: tosca_simple_yaml_1_2
+
+description: VNF descriptor for <<PRODUCT>>
+
+imports:
+  - etsi_nfv_sol001_vnfd_2_5_1_types.yaml
+
+data_types:
+  Ericsson.<<PRODUCT>>.<<VERSION>>.datatypes.nfv.ChangePackageVnfOperationAdditionalParameters:
+    derived_from: tosca.datatypes.nfv.VnfOperationAdditionalParameters
+    properties:
+      global.timezone:
+        type: string
+        description: timezone
+        required: true
+  Ericsson.<<PRODUCT>>.<<VERSION>>.datatypes.nfv.InstantiateVnfOperationAdditionalParameters:
+    derived_from: tosca.datatypes.nfv.VnfOperationAdditionalParameters
+    properties:
+      global.timezone:
+        type: string
+        description: timezone
+        required: true
+node_types:
+  Ericsson.<<PRODUCT>>.<<VERSION>>:
+    derived_from: tosca.nodes.nfv.VNF
+    properties:
+      descriptor_id:
+        type: string
+        constraints: [ valid_values: [ <<DESCRIPTOR_ID>> ] ]
+        default: <<DESCRIPTOR_ID>>
+      descriptor_version:
+        type: string
+        constraints: [ valid_values: [ <<VERSION>> ] ]
+        default: <<VERSION>>
+      provider:
+        type: string
+        constraints: [ valid_values: [ Ericsson ] ]
+        default: Ericsson
+      product_name:
+        type: string
+        constraints: [ valid_values: [ <<PRODUCT>> ] ]
+        default: <<PRODUCT>>
+      software_version:
+        type: string
+        constraints: [ valid_values: [ <<PRODUCT_SET>> ] ]
+        default: <<PRODUCT_SET>>
+      vnfm_info:
+        type: list
+        entry_schema:
+          type: string
+          constraints: [ valid_values: [ '3881:E-VNFM' ] ]
+        default: [ '3881:E-VNFM' ]
+      flavour_id:
+        type: string
+        constraints: [ valid_values: [ default ] ]
+        default: default
+      flavour_description:
+        type: string
+        default: ''
+    interfaces:
+      Vnflcm:
+        type: tosca.interfaces.nfv.Vnflcm
+        instantiate:
+          inputs:
+            helm_package:
+              type: list
+              required: true
+              description: List of all helm charts
+            additional_parameters:
+              type: Ericsson.<<PRODUCT>>.<<VERSION>>.datatypes.nfv.InstantiateVnfOperationAdditionalParameters
+              required: false
+        terminate: {}
+        change_package:
+          inputs:
+            helm_package:
+              type: list
+              required: true
+              description: List of all helm charts
+            additional_parameters:
+              type: Ericsson.<<PRODUCT>>.<<VERSION>>.datatypes.nfv.ChangePackageVnfOperationAdditionalParameters
+              required: false
+    artifacts:
+      helm_package:
+        description: Helm package for <<PRODUCT>> application
+        type: tosca.artifacts.File
+        file: Definitions/OtherTemplates/<<CHART>>
+      software_images:
+        description: <<PRODUCT>> software images
+        type: tosca.artifacts.nfv.SwImage
+        file: Files/images/docker.tar
+topology_template:
